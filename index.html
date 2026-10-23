@@ -22,6 +22,7 @@
     --bg:#F4F7FA; --surface:#FFFFFF; --line:#DCE3EA; --line-2:#EDF1F5;
     --text:#14212E; --text-2:#4A5A6A; --muted:#738396;
     --series-1:#0B66B2; --series-2:#D9622B;
+    --gold:#F2C000;
     --radius:12px; --shadow:0 1px 2px rgba(16,40,64,.06), 0 1px 1px rgba(16,40,64,.04);
     --font:'Sarabun',-apple-system,'Segoe UI','Leelawadee UI','Tahoma',sans-serif;
     --mono:ui-monospace,'SF Mono',Consolas,monospace;
@@ -37,7 +38,12 @@
   /* ---------- โครงหน้า ---------- */
   .topbar{position:sticky;top:0;z-index:20;height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px;}
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--text);white-space:nowrap;}
-  .brand-mark{width:30px;height:30px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;}
+  .brand-mark{width:32px;height:32px;border-radius:8px;flex-shrink:0;}
+  .school-logo{height:40px;width:auto;flex-shrink:0;margin-top:-3px;}
+  .brand-divider{width:1px;height:30px;background:var(--line);flex-shrink:0;}
+  /* แถบสีทอง-น้ำเงิน ใต้หัวแอป: สีทองจากรัศมีในตราโรงเรียน */
+  .topbar::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;
+    background:linear-gradient(90deg,var(--gold) 0,var(--gold) 120px,var(--primary) 120px);}
   .brand small{display:block;font-weight:500;font-size:11.5px;color:var(--muted);line-height:1.1;}
   .chips{margin-left:auto;display:flex;gap:8px;align-items:center;}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--text-2);background:var(--line-2);border-radius:999px;padding:4px 10px;white-space:nowrap;}
@@ -284,7 +290,9 @@
     .page-head h1{font-size:20px;}
     .banner{flex-wrap:wrap;}
     .banner #bnChange{width:100%;}
-    .brand{font-size:15px;}
+    .brand{font-size:15px;gap:8px;}
+    .school-logo{height:36px;}
+    .brand-mark{width:28px;height:28px;}
   }
 </style>
 </head>
@@ -321,8 +329,10 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand-mark"><svg class="ico"><use href="#i-cross"/></svg></div>
-    <div>RehabGlove Clinic<small>ระบบฟื้นฟูมือด้วยถุงมือกายภาพบำบัด</small></div>
+    <img class="school-logo" src="icons/school-logo.png" alt="ตราโรงเรียนศรีสองรักษ์วิทยา">
+    <span class="brand-divider"></span>
+    <img class="brand-mark" src="icons/icon-192.png" alt="">
+    <div>RehabGlove Clinic<small>โรงเรียนศรีสองรักษ์วิทยา · ระบบฟื้นฟูมือด้วยถุงมือกายภาพบำบัด</small></div>
   </div>
   <div class="chips">
     <span class="chip" id="chipGlove" title="สถานะถุงมือ"><span class="dot"></span><svg class="ico" style="width:14px;height:14px"><use href="#i-bt"/></svg><span class="lbl" id="chipGloveText">ถุงมือ: ไม่เชื่อมต่อ</span></span>
@@ -337,7 +347,10 @@
     <button class="nav-btn active" data-tab="train"><svg class="ico lg"><use href="#i-hand"/></svg>ฝึกกายภาพ</button>
     <button class="nav-btn" data-tab="patients"><svg class="ico lg"><use href="#i-users"/></svg>ทะเบียนผู้ป่วย</button>
     <button class="nav-btn" data-tab="stats"><svg class="ico lg"><use href="#i-chart"/></svg>ประวัติและผลการรักษา</button>
-    <div class="nav-foot">ข้อมูลเก็บในเครื่องนี้เท่านั้น<br>สำรองข้อมูลเป็นประจำที่หน้า "ทะเบียนผู้ป่วย"</div>
+    <div class="nav-foot">
+      โครงงานถุงมือกายภาพบำบัด<br>โรงเรียนศรีสองรักษ์วิทยา<br><br>
+      ข้อมูลเก็บในเครื่องนี้เท่านั้น<br>สำรองข้อมูลเป็นประจำที่หน้า "ทะเบียนผู้ป่วย"
+    </div>
   </nav>
 
   <main>

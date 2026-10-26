@@ -29,12 +29,13 @@
   โปรโตคอลคำสั่ง (ข้อความ ASCII ผ่าน BLE หรือ Serial 115200 ก็ได้)
     START, PAUSE, RESUME, STOP, ESTOP, TGT:10, SPD:50, HOLD:2000,
     ROM:360 (ระยะกำเป็นองศามอเตอร์ ของนิ้วที่เลือก), JOG:+ / JOG:-, ZERO, SETMAX, SYNC,
+    GOTO:MAX / GOTO:OPEN (หมุนนิ้วที่เลือกไปท่ากำสุด / หมุนกลับท่าแบมือ เสร็จแล้วตอบ MOVED),
     MODE:GRIP|WAVE|OPP, FMASK:1111 (โป้ง,ชี้,กลาง,นาง+ก้อย), SEL:0-4 (0 = ทุกนิ้ว), FLIP
 
   ข้อความที่ส่งกลับ
     STARTED, PHASE:GRIP|HOLD|RELEASE|TWIST, ROUND:n, PEAK:pct, POS:pct, STALL:pct, DONE,
     RETURNING, RETURNED, PAUSED, RESUMED, STOPPED, ESTOP, BATT:7.4,
-    ERR:<เหตุผล>[,นิ้ว,พอร์ต] เช่น ERR:NO_MOTION,1,1 = มอเตอร์นิ้วโป้ง (M1) ไม่หมุน หรือ encoder ไม่นับ,
+    ERR:<เหตุผล>[,นิ้ว,พอร์ต[,ตำแหน่ง]] เช่น ERR:NO_MOTION,1,1 = มอเตอร์นิ้วโป้ง (M1) ไม่หมุน หรือ encoder ไม่นับ,
     CFG:rom,target,speed,holdMs,mode,mask, STATE:phase,round,paused,
     ACT:0100, FPOS:a,b,c,d, FPEAK:a,b,c,d ('-' = ไม่ได้ร่วมฝึก), FSTALL:finger,pct,
     FCFG:rom1,rom2,rom3,rom4,sel
@@ -113,7 +114,9 @@ BLECharacteristic rxChar("6E400002-B5A3-F393-E0A9-E50E24DCCA9E", BLEWrite | BLEW
 BLECharacteristic txChar("6E400003-B5A3-F393-E0A9-E50E24DCCA9E", BLENotify, 40);
 
 // ---------- สถานะ ----------
-enum Phase { IDLE, GRIP, HOLD, RELEASE, TWIST_OUT, TWIST_IN, RETURNING, JOG };
+enum Phase { IDLE, GRIP, HOLD, RELEASE, TWIST_OUT, TWIST_IN, RETURNING, JOG, MANUAL };
+uint8_t manualMask = 0;    // นิ้วที่กำลังหมุนจากปุ่ม GOTO
+int  manualDir = 0;        // +1 = ไปท่ากำสุด, -1 = กลับท่าแบมือ
 Phase phase = IDLE;
 
 bool isRunning = false;
@@ -143,6 +146,7 @@ struct Finger {
   int  goodTravel;         // ระยะที่หมุนไปตามทิศที่สั่งในการเคลื่อนที่นี้
   int  jogStartPos;
   uint8_t jumpCount;       // จำนวนครั้งติดกันที่ค่า encoder กระโดดผิดปกติ
+  unsigned long overSince; // เวลาที่เริ่มหมุนเกินระยะ (0 = ไม่เกิน)
   unsigned long readAt;    // เวลาที่อ่าน encoder สำเร็จล่าสุด
   unsigned long cmdAt;     // เวลาที่ส่งคำสั่งมอเตอร์ล่าสุด
   int  startPos;           // ตำแหน่งตอนเริ่มเคลื่อนที่ (ใช้ตรวจว่ามอเตอร์ไม่หมุนเลย)
@@ -323,7 +327,7 @@ void onConnected(BLEDevice central) {
 
 void onDisconnected(BLEDevice central) {
   Serial.println("อุปกรณ์ตัดการเชื่อมต่อ — คืนมือสู่ตำแหน่งแบมือ");
-  if (isRunning || phase == JOG) stopTraining();
+  if (isRunning || phase == JOG || phase == MANUAL) stopTraining();
   BLE.advertise();
 }
 
@@ -439,6 +443,8 @@ void handleCommand(String cmd) {
     }
     saveConfig();
     sendConfig();
+  } else if (cmd == "GOTO:MAX" || cmd == "GOTO:OPEN") {
+    gotoPosition(cmd.endsWith("MAX") ? 1 : -1);
   } else if (cmd == "SYNC") {
     sendConfig();
     sendState();
@@ -489,6 +495,7 @@ const char *phaseName(Phase p) {
     case TWIST_OUT:
     case TWIST_IN: return "TWIST";
     case RETURNING: return "RETURNING";
+    case MANUAL: return "MANUAL";
     case JOG: return "JOG";
     default: return "IDLE";
   }
@@ -564,9 +571,25 @@ void fault(const String &reason) {
   phase = IDLE;
   MiniR4.Buzzer.Tone(600, 600);
   sendStatus("ERR:" + reason);
+  for (int f = 0; f < NF; f++) lastFpos[f] = -999;   // ส่งตำแหน่งจริงของทุกนิ้วให้แอปทันที
 }
 
 int jogDir = 0;
+
+// ปุ่มในหน้าคาลิเบรต: หมุนนิ้วที่เลือกไปท่ากำสุด (dir = 1) หรือกลับท่าแบมือ (dir = -1)
+// ใช้ระบบความปลอดภัยเดียวกับตอนฝึก (นิ้วเกร็งต้านขณะกำ = หยุดค้างไว้)
+void gotoPosition(int dir) {
+  if (isRunning) { sendStatus("ERR:BUSY"); return; }
+  if (phase == JOG) brakeAll();
+  manualMask = selFinger ? 1 << (selFinger - 1) : 0b1111;
+  manualDir = dir;
+  activeMask = manualMask;
+  int n = 0;
+  for (int f = 0; f < NF; f++) {
+    if (manualMask >> f & 1) startMove(f, dir > 0 ? cfg.romDeg[f] : 0, dir > 0 ? gripPower() : releasePower(), STAGGER_MS * n++);
+  }
+  enterPhase(MANUAL);
+}
 
 // encoder นับสวนทางกับที่สั่งมอเตอร์: สลับทิศการนับของนิ้วนั้น จำไว้ แล้วแจ้งแอป
 void fixEncoder(int f) {
@@ -696,6 +719,7 @@ void readFingerFresh(int f) {
 bool started(int f) { return (long)(millis() - fg[f].startAt) >= 0; }
 
 bool inStep(int f) {
+  if (phase == MANUAL) return manualDir > 0 && (manualMask >> f & 1);
   return (phase == GRIP || phase == HOLD) && (steps[stepIdx] >> f & 1);
 }
 
@@ -718,6 +742,7 @@ bool stepFinger(int f) {
   // ลดความเร็วเมื่อใกล้ถึง เพื่อไม่ให้กระชากและไม่เลยเป้าหมาย
   int power = F.power;
   if (abs(err) < SLOWDOWN_DEG) power = max(MIN_POWER, F.power * abs(err) / SLOWDOWN_DEG);
+  power = (power + 2) / 5 * 5;   // ปัดเป็นขั้นละ 5 ลดจำนวนคำสั่งที่ส่งให้บอร์ด (ยิ่งส่งน้อย ยิ่งพลาดน้อย)
   motorPower(f, dir * power);
 
   // ตรวจว่ามอเตอร์ยังขยับอยู่ไหม
@@ -800,7 +825,15 @@ void updateMotion() {
   // กันหมุนเกินระยะไม่ว่าอยู่จังหวะไหน (ยกเว้นตอนคาลิเบรต)
   if (phase != IDLE && phase != JOG) {
     for (int f = 0; f < NF; f++) {
-      if (fg[f].pos > cfg.romDeg[f] + OVERTRAVEL_DEG) { fault("OVERTRAVEL" + fingerTag(f)); return; }
+      // เทียบกับระยะกำ หรือตำแหน่งตอนเริ่มจังหวะ (ถ้านิ้วอยู่เลยระยะกำอยู่แล้ว เช่นเพิ่งลดจำนวนรอบในแอป)
+      // และต้องเกินต่อเนื่อง 60 ms กันค่าที่อ่านผิดพลาดครั้งเดียว
+      bool over = fg[f].pos > max((int)cfg.romDeg[f], fg[f].startPos) + OVERTRAVEL_DEG;
+      if (!over) fg[f].overSince = 0;
+      else if (!fg[f].overSince) fg[f].overSince = millis() | 1;
+      else if (millis() - fg[f].overSince > 60) {
+        fault("OVERTRAVEL" + fingerTag(f) + "," + String(fg[f].pos));
+        return;
+      }
     }
   }
 
@@ -808,7 +841,7 @@ void updateMotion() {
     if (!stepFinger(f)) return;
   }
 
-  if ((phase == GRIP || phase == RELEASE || phase == TWIST_OUT || phase == TWIST_IN || phase == RETURNING) &&
+  if ((phase == GRIP || phase == RELEASE || phase == TWIST_OUT || phase == TWIST_IN || phase == RETURNING || phase == MANUAL) &&
       millis() - phaseStart > moveTimeout()) {
     fault("TIMEOUT");
     return;
@@ -860,6 +893,14 @@ void updateMotion() {
 
     case TWIST_IN:
       if (maskDone(roundMask)) finishRound();
+      break;
+
+    case MANUAL:
+      if (maskDone(manualMask)) {
+        phase = IDLE;
+        sendStatus("POS:" + String(posPercent()));
+        sendStatus("MOVED");
+      }
       break;
 
     case RETURNING:

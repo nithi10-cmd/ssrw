@@ -531,26 +531,31 @@
                   <li>กด <b>กำเพิ่ม</b> ทีละครั้ง จนกำได้ในระดับที่ผู้ป่วยไม่เจ็บ แล้วกด <b>ตั้งเป็นกำสุด</b></li>
                   <li>ทำซ้ำทุกนิ้ว · ค่าถูกจำไว้ในถุงมือ ปิดเครื่องแล้วไม่ต้องตั้งใหม่ (ถุงมือ v4)</li>
                 </ol>
-                <div class="seg seg-5 v4only" id="calSeg" role="radiogroup" aria-label="นิ้วที่จะคาลิเบรต" style="margin-bottom:10px;"></div>
+                <div class="seg seg-5" id="calSeg" role="radiogroup" aria-label="นิ้วที่จะคาลิเบรต" style="margin-bottom:10px;"></div>
                 <div class="grid grid-2-even" style="gap:8px;">
                   <button class="btn btn-secondary cal" id="jogMinus" disabled>คลาย</button>
                   <button class="btn btn-secondary cal" id="jogPlus" disabled>กำเพิ่ม</button>
                   <button class="btn btn-secondary cal" id="zeroBtn" disabled>ตั้งเป็นแบมือ</button>
                   <button class="btn btn-secondary cal" id="setMaxBtn" disabled>ตั้งเป็นกำสุด</button>
                 </div>
-                <button class="btn btn-ghost btn-sm cal v4only" id="flipBtn" style="margin-top:8px;" disabled><svg class="ico"><use href="#i-swap"/></svg>กด "กำเพิ่ม" แล้วนิ้วคลาย? สลับทิศของนิ้วที่เลือก</button>
-                <div class="field v4only" id="romField" style="margin:12px 0 0;">
+                <button class="btn btn-ghost btn-sm cal v4ctl" id="flipBtn" style="margin-top:8px;" disabled><svg class="ico"><use href="#i-swap"/></svg>กด "กำเพิ่ม" แล้วนิ้วคลาย? สลับทิศของนิ้วที่เลือก</button>
+                <div class="field" id="romField" style="margin:12px 0 0;">
                   <div class="field-top"><label for="romTurns">จำนวนรอบมอเตอร์ตอนกำสุด (<span id="romWho">ทุกนิ้ว</span>)</label></div>
                   <div class="rom-row">
-                    <button type="button" class="btn btn-secondary cal" id="romMinus" aria-label="ลด 0.25 รอบ" disabled>−</button>
-                    <input class="input cal" type="number" id="romTurns" min="0.1" max="8" step="0.25" inputmode="decimal" disabled>
+                    <button type="button" class="btn btn-secondary cal v4ctl" id="romMinus" aria-label="ลด 0.25 รอบ" disabled>−</button>
+                    <input class="input cal v4ctl" type="number" id="romTurns" min="0.1" max="8" step="0.25" inputmode="decimal" disabled>
                     <span class="rom-unit">รอบ</span>
-                    <button type="button" class="btn btn-secondary cal" id="romPlus" aria-label="เพิ่ม 0.25 รอบ" disabled>+</button>
-                    <button type="button" class="btn btn-primary cal" id="romSetBtn" disabled>ตั้งค่า</button>
+                    <button type="button" class="btn btn-secondary cal v4ctl" id="romPlus" aria-label="เพิ่ม 0.25 รอบ" disabled>+</button>
+                    <button type="button" class="btn btn-primary cal v4ctl" id="romSetBtn" disabled>ตั้งค่า</button>
                   </div>
                   <div class="hint">ใช้แทนการกด "กำเพิ่ม" ได้ (1 รอบ = 360°) · เริ่มจากค่าน้อยแล้วค่อยเพิ่ม · ค่าถูกจำไว้ในถุงมือ</div>
+                  <div class="grid grid-2-even" style="gap:8px;margin-top:10px;">
+                    <button type="button" class="btn btn-secondary cal v4ctl" id="gotoOpenBtn" disabled><svg class="ico"><use href="#i-down"/></svg>หมุนกลับท่าแบมือ</button>
+                    <button type="button" class="btn btn-secondary cal v4ctl" id="gotoMaxBtn" disabled><svg class="ico"><use href="#i-up"/></svg>หมุนไปท่ากำสุด</button>
+                  </div>
+                  <div class="hint" style="margin-top:4px;">หมุนนิ้วที่เลือกตามจำนวนรอบที่ตั้งไว้ ใช้ทดสอบระยะกำ · ถ้านิ้วเกร็งต้าน มอเตอร์จะหยุดเอง</div>
                 </div>
-                <div class="cal-info v4only" id="romList"></div>
+                <div class="cal-info" id="romList"></div>
                 <div class="cal-info v4only" id="senseText"></div>
                 <div class="field v4only" id="curField" style="margin:10px 0 0;" hidden>
                   <div class="field-top"><label for="curSlider">เกณฑ์แรงต้าน (กระแส Servo)</label><output id="curVal">900 mA</output></div>
@@ -1645,6 +1650,8 @@
     $('pauseText').textContent = paused ? 'ฝึกต่อ' : 'พัก';
     $('pauseBtn').querySelector('use').setAttribute('href', paused ? '#i-play' : '#i-pause');
     document.querySelectorAll('.cal').forEach(b => b.disabled = !on || running);
+    // ตั้งค่ารายนิ้วใช้ได้เฉพาะถุงมือ 4 มอเตอร์ (ถุงมือ v3 ไม่รู้จักคำสั่ง)
+    document.querySelectorAll('.v4ctl').forEach(b => { if(!gloveV4) b.disabled = true; });
     renderFingerBars();
   }
 
@@ -1849,7 +1856,7 @@
         break;
       case 'ERR': {
         // ERR:<เหตุผล>[,นิ้ว,พอร์ตมอเตอร์] (ถุงมือ v5 บอกนิ้วมาด้วย)
-        const [code, fi, port] = val.split(',');
+        const [code, fi, port, pos] = val.split(',');
         if(['STALL','DIRECTION','OVERTRAVEL','TIMEOUT','OVERCURRENT','NO_MOTION'].includes(code)){
           if(running) finishSession('ข้อผิดพลาด');
           running = false; paused = false; needsReturn = true;
@@ -1860,6 +1867,7 @@
         const who = fi ? `นิ้ว${FINGERS[fi - 1] || fi}${port ? ` (มอเตอร์ M${port})` : ''}: ` : '';
         let text = ERR_TEXT[code] || code;
         if(port) text = text.replace('ENC_SIGN', 'ENC_SIGN ของนิ้วนี้').replace('พอร์ตมอเตอร์', `พอร์ต M${port}`);
+        if(pos) text += ` (ตำแหน่งตอนนั้น ${pos}° = ${fmtTurns(+pos)}, ระยะกำที่ตั้งไว้ ${fmtTurns(romDeg[fi - 1])})`;
         showAlert(who + text);
         break;
       }
@@ -1910,6 +1918,9 @@
       }
       case 'FPEAK':
         if(session) session.pendingFPeak = val.split(',').map(v => v === '-' ? null : parseInt(v, 10));
+        break;
+      case 'MOVED':
+        toast('มอเตอร์หมุนถึงตำแหน่งแล้ว');
         break;
       case 'ENCFIX':
         toast(`ปรับทิศการนับ encoder ของนิ้ว${FINGERS[val - 1] || val}ให้อัตโนมัติแล้ว`);
@@ -1976,6 +1987,7 @@
     gloveV4 = true;
     $('v3Note').hidden = true;
     $('chipGloveText').textContent = 'ถุงมือ: เชื่อมต่อแล้ว · 4 นิ้ว';
+    updateButtons();
     document.querySelectorAll('.v4only').forEach(el => el.style.display = '');
   }
   function modeText(r){
@@ -1992,7 +2004,7 @@
   function buildFingerUI(){
     $('fingerBars').innerHTML = FINGERS.map((n, i) => `<div class="finger" id="fb${i}"><div class="fbar"><i></i></div><b>0%</b>${esc(n)}</div>`).join('');
     $('fingerSel').innerHTML = FINGERS.map((n, i) => `<button type="button" aria-pressed="true" data-f="${i}">${esc(n)}</button>`).join('');
-    $('calSeg').innerHTML = ['ทุกนิ้ว', ...FINGERS].map((n, i) => `<button type="button" role="radio" class="cal" data-sel="${i}" disabled>${esc(n)}</button>`).join('');
+    $('calSeg').innerHTML = ['ทุกนิ้ว', ...FINGERS].map((n, i) => `<button type="button" role="radio" class="cal v4ctl" data-sel="${i}" disabled>${esc(n)}</button>`).join('');
     $('fingerLegend').innerHTML = FINGERS.map((n, i) => `<span><i style="background:${FCOLORS[i]}"></i>${esc(n)}</span>`).join('');
     document.querySelectorAll('#fingerSel button').forEach(b => b.addEventListener('click', () => {
       const m = fmask.slice();
@@ -2093,6 +2105,10 @@
   $('romMinus').addEventListener('click', () => stepRom(-0.25));
   $('romPlus').addEventListener('click', () => stepRom(0.25));
   $('romSetBtn').addEventListener('click', setRomTurns);
+  // หมุนนิ้วที่เลือกไปท่ากำสุด / กลับท่าแบมือ (บอร์ดตอบ MOVED เมื่อเสร็จ)
+  const gotoPos = async where => { await sendCommand(`SEL:${calSel}`); await sendCommand(`GOTO:${where}`); };
+  $('gotoMaxBtn').addEventListener('click', () => gotoPos('MAX'));
+  $('gotoOpenBtn').addEventListener('click', () => gotoPos('OPEN'));
   $('romTurns').addEventListener('keydown', e => { if(e.key === 'Enter') setRomTurns(); });
 
   let curTimer = null;

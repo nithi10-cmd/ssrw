@@ -1,6 +1,6 @@
 // Service worker: เก็บไฟล์แอปไว้ในเครื่อง ให้เปิดได้แม้ไม่มีอินเทอร์เน็ต
 // เมื่อแก้ไฟล์แอป ให้เพิ่มเลขเวอร์ชันนี้ เพื่อให้เครื่องผู้ใช้โหลดไฟล์ใหม่
-const VERSION = 'rehabglove-v7';
+const VERSION = 'rehabglove-v10';
 const APP_FILES = [
   './',
   './index.html',

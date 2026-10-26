@@ -21,7 +21,7 @@
     --danger:#C8372D; --danger-600:#A82C23; --danger-50:#FCECEA;
     --bg:#F4F7FA; --surface:#FFFFFF; --line:#DCE3EA; --line-2:#EDF1F5;
     --text:#14212E; --text-2:#4A5A6A; --muted:#738396;
-    --series-1:#0B66B2; --series-2:#D9622B;
+    --series-1:#0B66B2; --series-2:#D9622B; --series-3:#1E8E5A; --series-4:#7A4FB5;
     --gold:#F2C000;
     --radius:12px; --shadow:0 1px 2px rgba(16,40,64,.06), 0 1px 1px rgba(16,40,64,.04);
     --font:'Sarabun',-apple-system,'Segoe UI','Leelawadee UI','Tahoma',sans-serif;
@@ -178,6 +178,33 @@
   .bars{display:flex;align-items:flex-end;gap:2px;height:72px;border-bottom:1px solid var(--line);}
   .bars div{flex:1;background:var(--primary);border-radius:4px 4px 0 0;min-height:2px;}
   .bars div.stall{background:var(--series-2);}
+
+  /* ---------- รายนิ้ว ---------- */
+  .fingers{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%;max-width:320px;margin-top:14px;}
+  .finger{text-align:center;font-size:12px;color:var(--text-2);}
+  .fbar{position:relative;height:64px;background:var(--line-2);border-radius:8px;overflow:hidden;margin-bottom:4px;border:2px solid transparent;}
+  .fbar i{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--primary);transition:height .15s linear;}
+  .finger.act .fbar{border-color:var(--primary);}
+  .finger.off{opacity:.4;}
+  .finger.stall .fbar i{background:var(--series-2);}
+  .finger b{display:block;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;}
+  .seg.seg-3{grid-template-columns:repeat(3,1fr);}
+  .seg.seg-5{grid-template-columns:repeat(5,1fr);}
+  .seg button:disabled{opacity:.45;cursor:not-allowed;}
+  .fsel{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .fsel button{font:inherit;font-size:13.5px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--text-2);border-radius:9px;padding:8px 4px;cursor:pointer;min-height:42px;}
+  .fsel button.on{background:var(--primary-50);border-color:var(--primary);color:var(--primary);}
+  .fsel button:focus-visible{outline:3px solid var(--primary-100);outline-offset:1px;}
+  .fpeaks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .fpeaks div{border:1px solid var(--line-2);border-radius:9px;padding:6px;text-align:center;font-size:12px;color:var(--muted);}
+  .fpeaks b{display:block;font-size:16px;color:var(--text);font-variant-numeric:tabular-nums;}
+  .fpeaks small{color:var(--series-2);font-weight:600;}
+  .cal-info{font-size:12.5px;color:var(--text-2);margin:10px 0 0;line-height:1.7;}
+  .rom-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .rom-row .input{width:90px;min-width:0;text-align:center;font-variant-numeric:tabular-nums;}
+  .rom-row .btn-secondary{width:42px;padding:0;}
+  .rom-row .btn-primary{margin-left:auto;}
+  .rom-unit{font-size:13.5px;color:var(--text-2);}
 
   /* ---------- ตาราง ---------- */
   .table-wrap{overflow-x:auto;}
@@ -393,7 +420,7 @@
               </div>
               <div class="step" id="step3">
                 <div class="num-badge">3</div>
-                <div class="t"><b>สวมถุงมือและเลือกระดับการฝึก</b><span>ตรวจสอบว่าสายไม่ตึงขณะแบมือ</span></div>
+                <div class="t"><b>สวมถุงมือ เลือกระดับและรูปแบบการฝึก</b><span>ตรวจสอบว่าสายไม่ตึงขณะแบมือ</span></div>
               </div>
             </div>
           </div>
@@ -420,6 +447,7 @@
                   <div><b id="roundNow">0</b>รอบที่ทำแล้ว</div>
                   <div><b id="roundTarget">12</b>รอบเป้าหมาย</div>
                 </div>
+                <div class="fingers" id="fingerBars" aria-label="ตำแหน่งของแต่ละนิ้ว"></div>
               </div>
 
               <div class="alert alert-danger" id="alertBox" role="alert"><svg class="ico"><use href="#i-alert"/></svg><div id="alertText"></div></div>
@@ -461,6 +489,22 @@
           </div>
 
           <div class="panel">
+            <div class="panel-head"><h2><svg class="ico"><use href="#i-hand"/></svg>รูปแบบการฝึก</h2></div>
+            <div class="panel-body">
+              <div class="seg seg-3" id="modeSeg" role="radiogroup" aria-label="รูปแบบการฝึก">
+                <button role="radio" data-mode="GRIP">กำ-แบ</button>
+                <button role="radio" data-mode="WAVE">ไล่ทีละนิ้ว</button>
+                <button role="radio" data-mode="OPP">แตะนิ้วโป้ง</button>
+              </div>
+              <div class="preset-desc" id="modeDesc"></div>
+              <div class="field-top" style="align-items:center;"><span>นิ้วที่ร่วมฝึก</span><button class="btn btn-ghost btn-sm" id="allFingersBtn">เลือกทุกนิ้ว</button></div>
+              <div class="fsel" id="fingerSel" role="group" aria-label="นิ้วที่ร่วมฝึก"></div>
+              <div class="hint" style="margin-top:8px;">เลือกนิ้วเดียว = ฝึกทีละนิ้ว · เปลี่ยนระหว่างฝึกได้ มีผลตั้งแต่รอบถัดไป</div>
+              <div class="alert alert-info" id="v3Note" style="margin-top:12px;" hidden><svg class="ico"><use href="#i-alert"/></svg><div>ถุงมือที่เชื่อมต่ออยู่เป็นรุ่นมอเตอร์เดียว (v3) ฝึกได้เฉพาะกำ-แบทั้งมือ</div></div>
+            </div>
+          </div>
+
+          <div class="panel">
             <div class="panel-head"><h2><svg class="ico"><use href="#i-chart"/></svg>ผลการฝึกครั้งนี้</h2></div>
             <div class="panel-body">
               <div class="mini-kpis">
@@ -468,6 +512,7 @@
                 <div><b id="statPeak">–</b><span>ระยะกำเฉลี่ย</span></div>
                 <div><b id="statStall">0</b><span>นิ้วเกร็งต้าน</span></div>
               </div>
+              <div class="fpeaks" id="fingerPeaks" aria-label="ระยะกำเฉลี่ยรายนิ้ว"></div>
               <div class="bars" id="bars" aria-label="ระยะกำในแต่ละรอบ"></div>
               <div class="legend" style="margin:8px 0 0;font-size:12.5px;">
                 <span><i style="background:var(--primary)"></i>ระยะกำแต่ละรอบ</span>
@@ -481,15 +526,36 @@
               <summary class="panel-head" style="cursor:pointer;list-style:none;border-bottom:none;"><h2><svg class="ico"><use href="#i-tool"/></svg>คาลิเบรตระยะกำมือ</h2><span class="badge">ROM&nbsp;<span id="romVal">–</span>°</span></summary>
               <div class="panel-body" style="border-top:1px solid var(--line-2);">
                 <ol class="hint" style="margin:0 0 12px;padding-left:18px;">
-                  <li>ให้ผู้ป่วยแบมือสุด แล้วกด <b>ตั้งเป็นแบมือ</b></li>
-                  <li>กด <b>กำเพิ่ม</b> ทีละครั้ง จนกำได้ในระดับที่ผู้ป่วยไม่เจ็บ</li>
-                  <li>กด <b>ตั้งเป็นกำสุด</b> (ต้องทำใหม่ทุกครั้งที่เปิดเครื่อง)</li>
+                  <li>เลือกนิ้วที่จะตั้งค่า (หรือ <b>ทุกนิ้ว</b>)</li>
+                  <li>ให้ผู้ป่วยแบมือสุด กด <b>คลาย</b>/<b>กำเพิ่ม</b> จนสายเริ่มตึงพอดี แล้วกด <b>ตั้งเป็นแบมือ</b></li>
+                  <li>กด <b>กำเพิ่ม</b> ทีละครั้ง จนกำได้ในระดับที่ผู้ป่วยไม่เจ็บ แล้วกด <b>ตั้งเป็นกำสุด</b></li>
+                  <li>ทำซ้ำทุกนิ้ว · ค่าถูกจำไว้ในถุงมือ ปิดเครื่องแล้วไม่ต้องตั้งใหม่ (ถุงมือ v4)</li>
                 </ol>
+                <div class="seg seg-5 v4only" id="calSeg" role="radiogroup" aria-label="นิ้วที่จะคาลิเบรต" style="margin-bottom:10px;"></div>
                 <div class="grid grid-2-even" style="gap:8px;">
                   <button class="btn btn-secondary cal" id="jogMinus" disabled>คลาย</button>
                   <button class="btn btn-secondary cal" id="jogPlus" disabled>กำเพิ่ม</button>
                   <button class="btn btn-secondary cal" id="zeroBtn" disabled>ตั้งเป็นแบมือ</button>
                   <button class="btn btn-secondary cal" id="setMaxBtn" disabled>ตั้งเป็นกำสุด</button>
+                </div>
+                <button class="btn btn-ghost btn-sm cal v4only" id="flipBtn" style="margin-top:8px;" disabled><svg class="ico"><use href="#i-swap"/></svg>กด "กำเพิ่ม" แล้วนิ้วคลาย? สลับทิศของนิ้วที่เลือก</button>
+                <div class="field v4only" id="romField" style="margin:12px 0 0;">
+                  <div class="field-top"><label for="romTurns">จำนวนรอบมอเตอร์ตอนกำสุด (<span id="romWho">ทุกนิ้ว</span>)</label></div>
+                  <div class="rom-row">
+                    <button type="button" class="btn btn-secondary cal" id="romMinus" aria-label="ลด 0.25 รอบ" disabled>−</button>
+                    <input class="input cal" type="number" id="romTurns" min="0.1" max="8" step="0.25" inputmode="decimal" disabled>
+                    <span class="rom-unit">รอบ</span>
+                    <button type="button" class="btn btn-secondary cal" id="romPlus" aria-label="เพิ่ม 0.25 รอบ" disabled>+</button>
+                    <button type="button" class="btn btn-primary cal" id="romSetBtn" disabled>ตั้งค่า</button>
+                  </div>
+                  <div class="hint">ใช้แทนการกด "กำเพิ่ม" ได้ (1 รอบ = 360°) · เริ่มจากค่าน้อยแล้วค่อยเพิ่ม · ค่าถูกจำไว้ในถุงมือ</div>
+                </div>
+                <div class="cal-info v4only" id="romList"></div>
+                <div class="cal-info v4only" id="senseText"></div>
+                <div class="field v4only" id="curField" style="margin:10px 0 0;" hidden>
+                  <div class="field-top"><label for="curSlider">เกณฑ์แรงต้าน (กระแส Servo)</label><output id="curVal">900 mA</output></div>
+                  <input type="range" id="curSlider" min="200" max="3000" step="50" value="900">
+                  <div class="hint">กระแสตอนนี้: <span id="curLive">–</span> · ถ้าระบบแจ้งนิ้วเกร็งบ่อยเกินไป ให้เพิ่มค่า ถ้าไม่แจ้งทั้งที่นิ้วต้าน ให้ลดค่า</div>
                 </div>
               </div>
             </details>
@@ -611,6 +677,14 @@
           </div>
 
           <div class="panel">
+            <div class="panel-head"><h2><svg class="ico"><use href="#i-hand"/></svg>ระยะกำเฉลี่ยรายนิ้ว (%)</h2></div>
+            <div class="panel-body">
+              <div class="legend" id="fingerLegend"></div>
+              <div class="chart" id="fingerChart"></div>
+            </div>
+          </div>
+
+          <div class="panel">
             <div class="panel-head">
               <h2><svg class="ico"><use href="#i-gauge"/></svg>แรงบีบมือ (กก.)</h2>
               <button class="btn btn-primary btn-sm" id="addGripBtn"><svg class="ico"><use href="#i-plus"/></svg>บันทึกแรงบีบ</button>
@@ -644,7 +718,7 @@
             <div class="panel-head"><h2><svg class="ico"><use href="#i-hand"/></svg>ประวัติการฝึกด้วยถุงมือ</h2></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>วันเวลา</th><th>รอบ</th><th>กำเฉลี่ย</th><th>ต้าน</th><th>ผล</th><th></th></tr></thead>
+                <thead><tr><th>วันเวลา</th><th>รอบ</th><th>รูปแบบ</th><th>กำเฉลี่ย</th><th>ต้าน</th><th>ผล</th><th></th></tr></thead>
                 <tbody id="historyBody"></tbody>
               </table>
             </div>
@@ -877,6 +951,7 @@
   // ใช้ระดับการฝึกล่าสุดของผู้ป่วยรายนี้ (ถ้าเคยฝึก) ไม่เช่นนั้นใช้ "ปานกลาง"
   function loadPatientSettings(){
     const t = currentPatient()?.training;
+    loadPatientFingers(t);
     if(!t){ applyPreset('mid'); return; }
     if(t.preset && t.preset !== 'custom'){ applyPreset(t.preset); return; }
     setSlider('tgtSlider', t.tgt); setSlider('spdSlider', t.spd); setSlider('holdSlider', t.hold);
@@ -1413,6 +1488,13 @@
       ss.length ? [{ name: 'กำเฉลี่ย', color: 'var(--series-1)', points: ss.map(s => ({ x: s.date, y: s.avgPeak, extra: `${s.rounds}/${s.target} รอบ` })) }] : [],
       { unit: '%', yMax: 100, emptyText: 'ยังไม่มีข้อมูลการฝึก' });
 
+    const fingerSeries = FINGERS.map((name, i) => ({
+      name, color: FCOLORS[i],
+      points: ss.filter(s => s.fingerPeaks && s.fingerPeaks[i] != null)
+        .map(s => ({ x: s.date, y: s.fingerPeaks[i], extra: modeText(s) })),
+    })).filter(s => s.points.length);
+    lineChart($('fingerChart'), fingerSeries, { unit: '%', yMax: 100, emptyText: 'ยังไม่มีข้อมูลรายนิ้ว (บันทึกได้กับถุงมือ v4)' });
+
     renderGrips();
     renderTreatments();
     renderHistory();
@@ -1422,10 +1504,10 @@
   function renderHistory(){
     const tbody = $('historyBody');
     const ss = patientSessions().slice().reverse();
-    tbody.innerHTML = ss.length ? '' : '<tr><td colspan="6" class="empty">ยังไม่มีประวัติการฝึก</td></tr>';
+    tbody.innerHTML = ss.length ? '' : '<tr><td colspan="7" class="empty">ยังไม่มีประวัติการฝึก</td></tr>';
     ss.slice(0, 50).forEach(r => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="n">${esc(fmtDateTime(r.date))}</td><td class="n">${r.rounds}/${r.target}</td><td class="n"><b>${r.avgPeak}%</b></td>
+      tr.innerHTML = `<td class="n">${esc(fmtDateTime(r.date))}</td><td class="n">${r.rounds}/${r.target}</td><td title="${esc(fingerPeakText(r))}">${esc(modeText(r))}</td><td class="n"><b>${r.avgPeak}%</b></td>
         <td class="n">${r.stalls}</td><td><span class="badge ${RESULT_BADGE[r.result] ?? ''}" style="margin:0">${esc(r.result)}</span></td>
         <td class="act"><button class="btn btn-ghost danger icon-btn" title="ลบ" aria-label="ลบ">${icon('trash')}</button></td>`;
       tr.querySelector('button').addEventListener('click', async () => {
@@ -1439,8 +1521,10 @@
 
   $('exportBtn').addEventListener('click', () => {
     const p = currentPatient();
-    const rows = [['patient','hn','date','rounds','target','speed','hold_ms','avg_peak_pct','stalls','result','peaks']];
-    patientSessions().forEach(r => rows.push([p ? fullName(p) : 'ไม่ระบุ', p?.hn || '', r.date, r.rounds, r.target, r.speed, r.holdMs, r.avgPeak, r.stalls, r.result, (r.peaks || []).join(' ')]));
+    const rows = [['patient','hn','date','rounds','target','speed','hold_ms','avg_peak_pct','stalls','result','peaks','mode','fingers',
+      ...FINGERS.map((_, i) => `finger${i+1}_avg_peak_pct`), ...FINGERS.map((_, i) => `finger${i+1}_stalls`)]];
+    patientSessions().forEach(r => rows.push([p ? fullName(p) : 'ไม่ระบุ', p?.hn || '', r.date, r.rounds, r.target, r.speed, r.holdMs, r.avgPeak, r.stalls, r.result, (r.peaks || []).join(' '),
+      r.mode || 'GRIP', r.mask || '1111', ...FINGERS.map((_, i) => r.fingerPeaks?.[i] ?? ''), ...FINGERS.map((_, i) => r.fingerStalls?.[i] ?? '')]));
     if(p){
       rows.push([], ['grip_date','hand','kg','note']);
       db.grips.filter(g => g.patientId === p.id).forEach(g => rows.push([g.date, g.hand, g.kg, g.note]));
@@ -1561,6 +1645,7 @@
     $('pauseText').textContent = paused ? 'ฝึกต่อ' : 'พัก';
     $('pauseBtn').querySelector('use').setAttribute('href', paused ? '#i-play' : '#i-pause');
     document.querySelectorAll('.cal').forEach(b => b.disabled = !on || running);
+    renderFingerBars();
   }
 
   function setRing(pct){
@@ -1587,7 +1672,12 @@
 
   const ERR_TEXT = {
     STALL:      'กลไกติดขัดระหว่างคืนสาย มอเตอร์หยุดแล้ว กรุณาตรวจสอบสายและถุงมือ',
-    DIRECTION:  'encoder นับกลับทิศกับมอเตอร์ ให้แก้ค่า ENC_SIGN ในโค้ด Arduino เป็น -1',
+    DIRECTION:  'encoder นับกลับทิศกับมอเตอร์ (ถุงมือ v5 ปรับทิศให้เองแล้วแต่ยังผิด: ตรวจสายที่ช่อง ENCODER ว่าเสียบแน่น และอยู่มุมเดียวกับช่อง MOTOR · ถุงมือ v3: แก้ค่า ENC_SIGN ในโค้ดเป็น -1)',
+    OVERCURRENT:'Servo กินกระแสสูงผิดปกติ ระบบหยุดค้างไว้แล้ว ตรวจสอบสายดึงและนิ้วผู้ป่วย แล้วกด "หยุด" เพื่อคืนท่าแบมือ',
+    POT:        'อ่านค่าตำแหน่งจาก pot ของนิ้วที่เลือกไม่ได้ (ค่าแทบไม่เปลี่ยน) ตรวจสอบสายที่บัดกรีจาก pot แล้วคาลิเบรตใหม่',
+    NO_FINGER:  'ยังไม่ได้เลือกนิ้วที่ร่วมฝึก',
+    NO_MOTION:  'สั่งมอเตอร์แล้วแต่ตำแหน่งไม่เปลี่ยนเลย — มอเตอร์ไม่หมุน หรือสาย encoder ไม่ได้เสียบ ตรวจว่าเสียบสายมอเตอร์ที่ช่อง MOTOR และสาย encoder ที่ช่อง ENCODER ของพอร์ตมอเตอร์ ให้ครบทั้งสองเส้น แล้วทดสอบด้วยปุ่ม "กำเพิ่ม" ในหัวข้อคาลิเบรต',
+    UNKNOWN_CMD:'ถุงมือไม่รู้จักคำสั่งนี้ (เฟิร์มแวร์อาจเป็นรุ่นเก่า)',
     OVERTRAVEL: 'มอเตอร์หมุนเกินระยะกำที่ตั้งไว้ ระบบตัดการทำงานแล้ว กรุณาคาลิเบรตใหม่',
     TIMEOUT:    'จังหวะการเคลื่อนไหวใช้เวลานานผิดปกติ มอเตอร์หยุดแล้ว',
     BUSY:       'ไม่สามารถทำคำสั่งนี้ระหว่างฝึกได้',
@@ -1616,9 +1706,11 @@
     const txChar = await service.getCharacteristic(TX_UUID);
     await txChar.startNotifications();
     txChar.addEventListener('characteristicvaluechanged', onStatusReceived);
+    gloveV4 = false;
     setConnState('on');
     log('เชื่อมต่อสำเร็จ พร้อมใช้งาน', '✓');
     sendCommand('SYNC');
+    setTimeout(() => { if(device?.gatt.connected && !gloveV4) $('v3Note').hidden = false; }, 2500);
   }
 
   async function onDisconnected(){
@@ -1674,7 +1766,7 @@
 
   function onStatusReceived(event){
     const msg = new TextDecoder('utf-8').decode(event.target.value).trim();
-    if(!msg.startsWith('POS:')) log(msg, '↓ รับ');
+    if(!/^(F?POS|FCUR):/.test(msg)) log(msg, '↓ รับ');
     handleStatus(msg);
   }
 
@@ -1694,21 +1786,27 @@
         running = true; paused = false; needsReturn = false;
         // จำระดับการฝึกไว้กับผู้ป่วย ครั้งหน้าเลือกผู้ป่วยแล้วใช้ค่าเดิมได้ทันที
         if(currentPatient()){
-          currentPatient().training = { preset, tgt: targetRounds, spd: speed, hold: holdMs };
+          currentPatient().training = { preset, tgt: targetRounds, spd: speed, hold: holdMs,
+            ...(gloveV4 ? { mode, mask: fmask.join('') } : {}) };
           saveDB();
         }
         $('roundNow').textContent = '0';
         $('ringSub').textContent = 'เริ่มฝึกแล้ว';
         showAlert('');
+        clearFingerStalls();
         startSession();
         requestWakeLock();
         break;
-      case 'ROUND': $('roundNow').textContent = val; break;
+      case 'ROUND': $('roundNow').textContent = val; clearFingerStalls(); break;
       case 'PEAK':
         if(session){
           session.peaks.push(parseInt(val,10));
           session.stalls.push(session.pendingStall);
+          session.fpeaks.push(session.pendingFPeak);
+          session.fstalls.push(session.pendingFStall);
           session.pendingStall = false;
+          session.pendingFPeak = null;
+          session.pendingFStall = [false, false, false, false];
           renderSession();
         }
         break;
@@ -1749,27 +1847,76 @@
         setPhaseBadge('หยุดฉุกเฉิน', 'bad');
         showAlert('หยุดฉุกเฉินแล้ว มอเตอร์ถูกเบรกค้างไว้ ตรวจสอบผู้ป่วย แล้วกดปุ่ม "หยุด" เพื่อคืนสายสู่ท่าแบมือ');
         break;
-      case 'ERR':
-        if(['STALL','DIRECTION','OVERTRAVEL','TIMEOUT'].includes(val)){
+      case 'ERR': {
+        // ERR:<เหตุผล>[,นิ้ว,พอร์ตมอเตอร์] (ถุงมือ v5 บอกนิ้วมาด้วย)
+        const [code, fi, port] = val.split(',');
+        if(['STALL','DIRECTION','OVERTRAVEL','TIMEOUT','OVERCURRENT','NO_MOTION'].includes(code)){
           if(running) finishSession('ข้อผิดพลาด');
           running = false; paused = false; needsReturn = true;
           $('ringPhaseText').textContent = 'หยุด';
+          $('ringSub').textContent = 'ดูข้อความด้านล่าง';
           setPhaseBadge('ผิดปกติ', 'bad');
         }
-        showAlert(ERR_TEXT[val] || val);
+        const who = fi ? `นิ้ว${FINGERS[fi - 1] || fi}${port ? ` (มอเตอร์ M${port})` : ''}: ` : '';
+        let text = ERR_TEXT[code] || code;
+        if(port) text = text.replace('ENC_SIGN', 'ENC_SIGN ของนิ้วนี้').replace('พอร์ตมอเตอร์', `พอร์ต M${port}`);
+        showAlert(who + text);
         break;
+      }
       case 'BATT': {
         const v = parseFloat(val);
         $('chipBatt').style.display = '';
         $('battText').textContent = `${v.toFixed(1)} V`;
-        $('chipBatt').className = 'chip ' + (v < 7.0 ? 'bad' : 'ok'); // แบต 2 เซลล์ ต่ำกว่า ~7.0V ควรชาร์จ
+        const cells = v > 9 ? 3 : 2;   // เดาจำนวนก้อนจากแรงดัน (2 ก้อน สูงสุด 8.4V, 3 ก้อน ต่ำสุด ~9.6V)
+        $('chipBatt').className = 'chip ' + (v < 3.5 * cells ? 'bad' : 'ok'); // ต่ำกว่า ~3.5V/ก้อน ควรชาร์จ
         break;
       }
       case 'CFG': {
         // ใช้เฉพาะค่าคาลิเบรต ส่วนระดับการฝึกยึดตามหน้าจอ (ของผู้ป่วยที่เลือก) ซึ่งส่งให้บอร์ดตอนกดเริ่มฝึก
+        // รูปแบบการฝึกและนิ้วที่เลือกก็ยึดตามหน้าจอเช่นกัน (ส่งให้บอร์ดตอนกดเริ่มฝึก)
         $('romVal').textContent = val.split(',')[0];
         break;
       }
+      case 'FCFG': {
+        markV4();
+        const v = val.split(',').map(Number);
+        romDeg = v.slice(0, 4);
+        renderCal(v[4]);
+        break;
+      }
+      case 'SENSE': {
+        markV4();
+        const [pot, cur, ma] = val.split(',');
+        const tick = m => FINGERS.map((n, i) => `${n} ${m[i] === '1' ? '✓' : '–'}`).join(' · ');
+        $('senseText').innerHTML = `ตำแหน่งจริง (pot): ${esc(tick(pot))}<br>วัดกระแส (INA219): ${esc(tick(cur))}`;
+        $('curField').hidden = !cur.includes('1');
+        setCur(+ma);
+        break;
+      }
+      case 'FPOS':
+        val.split(',').forEach((v, i) => setFingerPos(i, parseInt(v, 10)));
+        break;
+      case 'ACT':
+        actMask = val.split('').map(Number);
+        renderFingerBars();
+        break;
+      case 'FSTALL': {
+        const [f, pct] = val.split(',').map(Number);
+        if(session) session.pendingFStall[f-1] = true;
+        fingerStall[f-1] = true;
+        renderFingerBars();
+        $('ringSub').textContent = `นิ้ว${FINGERS[f-1]}เกร็งต้านที่ ${pct}% — คลายและค้างไว้`;
+        break;
+      }
+      case 'FPEAK':
+        if(session) session.pendingFPeak = val.split(',').map(v => v === '-' ? null : parseInt(v, 10));
+        break;
+      case 'ENCFIX':
+        toast(`ปรับทิศการนับ encoder ของนิ้ว${FINGERS[val - 1] || val}ให้อัตโนมัติแล้ว`);
+        break;
+      case 'FCUR':
+        $('curLive').textContent = val.split(',').map((v, i) => `${FINGERS[i]} ${v}`).join(' · ') + ' mA';
+        break;
       case 'STATE': {
         const [ph, round, p] = val.split(',');
         running = ph !== 'IDLE' && ph !== 'JOG';
@@ -1787,6 +1934,11 @@
     await sendCommand(`TGT:${targetRounds}`);
     await sendCommand(`SPD:${speed}`);
     await sendCommand(`HOLD:${holdMs}`);
+    if(gloveV4){
+      if(!fmask.includes(1)){ toast('กรุณาเลือกนิ้วที่ร่วมฝึกอย่างน้อย 1 นิ้ว', 'err'); return; }
+      await sendCommand(`MODE:${mode}`);
+      await sendCommand(`FMASK:${fmask.join('')}`);
+    }
     await sendCommand('START');
   });
   $('pauseBtn').addEventListener('click', ()=> sendCommand(paused ? 'RESUME' : 'PAUSE'));
@@ -1804,6 +1956,156 @@
   $('jogMinus').addEventListener('click', ()=> sendCommand('JOG:-'));
   $('zeroBtn').addEventListener('click', ()=> sendCommand('ZERO'));
   $('setMaxBtn').addEventListener('click', ()=> sendCommand('SETMAX'));
+  $('flipBtn').addEventListener('click', ()=> sendCommand('FLIP'));
+
+  // ---------- รายนิ้ว (ถุงมือ v4: Servo 4 ตัว) ----------
+  const FINGERS = ['โป้ง', 'ชี้', 'กลาง', 'นาง+ก้อย'];
+  const FCOLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
+  const MODES = {
+    GRIP: { label: 'กำ-แบ',       desc: 'นิ้วที่เลือกกำและแบพร้อมกัน — เลือกทุกนิ้ว = กำทั้งมือแบบเดิม, เลือกนิ้วเดียว = ฝึกทีละนิ้ว' },
+    WAVE: { label: 'ไล่ทีละนิ้ว', desc: 'กำ-แบทีละนิ้วไล่จากนิ้วโป้งไปนิ้วนาง/ก้อย ฝึกการแยกการเคลื่อนไหวของแต่ละนิ้ว' },
+    OPP:  { label: 'แตะนิ้วโป้ง', desc: 'นิ้วโป้งกำคู่กับนิ้วอื่นทีละนิ้ว (opposition) ฝึกท่าหยิบจับ — นิ้วโป้งร่วมฝึกเสมอ' },
+  };
+  let gloveV4 = false;
+  let mode = 'GRIP', fmask = [1, 1, 1, 1], calSel = 0;
+  let actMask = [0, 0, 0, 0], fingerStall = [false, false, false, false];
+  let fpos = [0, 0, 0, 0], romDeg = [null, null, null, null];
+
+  function markV4(){
+    if(gloveV4) return;
+    gloveV4 = true;
+    $('v3Note').hidden = true;
+    $('chipGloveText').textContent = 'ถุงมือ: เชื่อมต่อแล้ว · 4 นิ้ว';
+    document.querySelectorAll('.v4only').forEach(el => el.style.display = '');
+  }
+  function modeText(r){
+    const m = MODES[r.mask ? r.mode : 'GRIP']?.label || r.mode;
+    const mk = (r.mask || '1111').split('');
+    const who = mk.every(c => c === '1') ? 'ทุกนิ้ว' : FINGERS.filter((_, i) => mk[i] === '1').join(' ');
+    return `${m} · ${who}`;
+  }
+  function fingerPeakText(r){
+    if(!r.fingerPeaks) return '';
+    return FINGERS.map((n, i) => r.fingerPeaks[i] == null ? null : `${n} ${r.fingerPeaks[i]}%`).filter(Boolean).join(' · ');
+  }
+
+  function buildFingerUI(){
+    $('fingerBars').innerHTML = FINGERS.map((n, i) => `<div class="finger" id="fb${i}"><div class="fbar"><i></i></div><b>0%</b>${esc(n)}</div>`).join('');
+    $('fingerSel').innerHTML = FINGERS.map((n, i) => `<button type="button" aria-pressed="true" data-f="${i}">${esc(n)}</button>`).join('');
+    $('calSeg').innerHTML = ['ทุกนิ้ว', ...FINGERS].map((n, i) => `<button type="button" role="radio" class="cal" data-sel="${i}" disabled>${esc(n)}</button>`).join('');
+    $('fingerLegend').innerHTML = FINGERS.map((n, i) => `<span><i style="background:${FCOLORS[i]}"></i>${esc(n)}</span>`).join('');
+    document.querySelectorAll('#fingerSel button').forEach(b => b.addEventListener('click', () => {
+      const m = fmask.slice();
+      m[b.dataset.f] = m[b.dataset.f] ? 0 : 1;
+      setMask(m);
+    }));
+    $('allFingersBtn').addEventListener('click', () => setMask([1, 1, 1, 1]));
+    document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+    document.querySelectorAll('#calSeg button').forEach(b => b.addEventListener('click', () => {
+      renderCal(+b.dataset.sel);
+      sendCommand(`SEL:${b.dataset.sel}`);
+    }));
+    document.querySelectorAll('.v4only').forEach(el => el.style.display = 'none');
+    setMode('GRIP', false);
+    renderCal(0);
+  }
+
+  // รูปแบบการฝึกและนิ้วที่ผู้ป่วยรายนี้ใช้ครั้งล่าสุด (ไม่มี = กำ-แบทุกนิ้ว)
+  function loadPatientFingers(t){
+    setMode(MODES[t?.mode] ? t.mode : 'GRIP');
+    setMask(/^[01]{4}$/.test(t?.mask || '') && t.mask.includes('1') ? t.mask.split('').map(Number) : [1, 1, 1, 1]);
+  }
+
+  function setMode(m, send = true){
+    mode = m;
+    document.querySelectorAll('#modeSeg button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === m);
+      b.setAttribute('aria-checked', b.dataset.mode === m);
+    });
+    $('modeDesc').textContent = MODES[m].desc;
+    if(send && gloveV4) sendCommand(`MODE:${m}`);
+  }
+
+  function setMask(m, send = true){
+    fmask = m;
+    document.querySelectorAll('#fingerSel button').forEach(b => {
+      const on = !!m[b.dataset.f];
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on);
+    });
+    renderFingerBars();
+    if(send && gloveV4 && m.includes(1)) sendCommand(`FMASK:${m.join('')}`);
+  }
+
+  function setFingerPos(i, pct){
+    fpos[i] = Math.max(0, Math.min(100, pct || 0));
+    const el = $('fb' + i);
+    el.querySelector('i').style.height = fpos[i] + '%';
+    el.querySelector('b').textContent = Math.round(fpos[i]) + '%';
+  }
+
+  function renderFingerBars(){
+    FINGERS.forEach((_, i) => {
+      const el = $('fb' + i);
+      el.classList.toggle('act', running && !!actMask[i]);
+      el.classList.toggle('off', !fmask[i] && !(mode === 'OPP' && i === 0));
+      el.classList.toggle('stall', fingerStall[i]);
+    });
+  }
+
+  function clearFingerStalls(){
+    fingerStall = [false, false, false, false];
+    renderFingerBars();
+  }
+
+  function renderCal(sel){
+    calSel = sel;
+    document.querySelectorAll('#calSeg button').forEach(b => {
+      b.classList.toggle('active', +b.dataset.sel === sel);
+      b.setAttribute('aria-checked', +b.dataset.sel === sel);
+    });
+    $('romList').textContent = 'ระยะกำตอนนี้: ' + FINGERS.map((n, i) => `${n} ${fmtTurns(romDeg[i])}`).join(' · ');
+    $('romWho').textContent = sel ? 'นิ้ว' + FINGERS[sel - 1] : 'ทุกนิ้ว';
+    // นิ้วที่เลือกมีระยะกำเท่ากันหมด ให้แสดงค่านั้นในช่อง ไม่เช่นนั้นเว้นว่างไว้
+    const sels = sel ? [romDeg[sel - 1]] : romDeg;
+    if(document.activeElement !== $('romTurns')) $('romTurns').value = sels.every(d => d != null && d === sels[0]) ? +(sels[0] / 360).toFixed(2) : '';
+  }
+
+  const fmtTurns = d => d == null ? '–' : `${+(d / 360).toFixed(2)} รอบ`;
+
+  // ตั้งจำนวนรอบมอเตอร์ตอนกำสุด ให้นิ้วที่เลือก (ส่ง ROM เป็นองศา)
+  async function setRomTurns(){
+    const t = parseFloat($('romTurns').value);
+    if(!(t >= 0.1 && t <= 8)){ toast('กรอกจำนวนรอบ 0.1–8 รอบ', 'err'); return; }
+    const deg = Math.round(t * 360);
+    const idx = calSel ? [calSel - 1] : [0, 1, 2, 3];
+    // เพิ่มทีเดียวมากเกินไป อาจดึงนิ้วแรงเกิน ให้ยืนยันก่อน
+    const jump = idx.some(i => romDeg[i] && deg > romDeg[i] * 1.5);
+    if(jump && !await askConfirm('เพิ่มระยะกำมาก', `ระยะกำใหม่ ${+t.toFixed(2)} รอบ มากกว่าค่าเดิมเกิน 1.5 เท่า\nแนะนำให้ทดสอบโดยไม่สวมมือก่อน ต้องการตั้งค่าหรือไม่?`, 'ตั้งค่า')) return;
+    await sendCommand(`SEL:${calSel}`);
+    await sendCommand(`ROM:${deg}`);
+    toast(`ตั้งระยะกำ${calSel ? 'นิ้ว' + FINGERS[calSel - 1] : 'ทุกนิ้ว'} ${+t.toFixed(2)} รอบแล้ว`);
+  }
+  const stepRom = d => {
+    const v = parseFloat($('romTurns').value);
+    $('romTurns').value = Math.min(8, Math.max(0.25, Math.round(((Number.isNaN(v) ? 1 : v) + d) * 4) / 4));
+  };
+  $('romMinus').addEventListener('click', () => stepRom(-0.25));
+  $('romPlus').addEventListener('click', () => stepRom(0.25));
+  $('romSetBtn').addEventListener('click', setRomTurns);
+  $('romTurns').addEventListener('keydown', e => { if(e.key === 'Enter') setRomTurns(); });
+
+  let curTimer = null;
+  function setCur(ma){
+    if(Number.isNaN(ma)) return;
+    $('curSlider').value = ma;
+    $('curVal').textContent = ma + ' mA';
+  }
+  $('curSlider').addEventListener('input', e => {
+    setCur(+e.target.value);
+    clearTimeout(curTimer);
+    curTimer = setTimeout(() => sendCommand(`CUR:${e.target.value}`), 300);
+  });
 
   // ---------- ระดับการฝึก + แถบเลื่อน ----------
   const sliderFmt = {
@@ -1854,13 +2156,18 @@
 
   // ---------- บันทึกผลการฝึกเข้าผู้ป่วย ----------
   function startSession(){
-    session = { start: new Date(), patientId: currentId || null, peaks: [], stalls: [], pendingStall: false };
+    session = { start: new Date(), patientId: currentId || null, peaks: [], stalls: [], pendingStall: false,
+                fpeaks: [], fstalls: [], pendingFPeak: null, pendingFStall: [false, false, false, false],
+                mode: gloveV4 ? mode : null, mask: gloveV4 ? fmask.join('') : null };
     renderSession();
   }
 
   function renderSession(){
-    const s = session || { peaks: [], stalls: [] };
+    const s = session || { peaks: [], stalls: [], fpeaks: [], fstalls: [] };
     const n = s.peaks.length;
+    const fs = fingerSummary(s);
+    $('fingerPeaks').innerHTML = FINGERS.map((name, i) =>
+      `<div><b>${fs.peaks[i] == null ? '–' : fs.peaks[i] + '%'}</b>${esc(name)}${fs.stalls[i] ? ` <small>ต้าน ${fs.stalls[i]}</small>` : ''}</div>`).join('');
     $('statRounds').textContent = n;
     $('statPeak').textContent = n ? Math.round(s.peaks.reduce((a,b)=>a+b,0)/n) + '%' : '–';
     $('statStall').textContent = s.stalls.filter(Boolean).length;
@@ -1872,6 +2179,16 @@
       if(s.stalls[i]) d.className = 'stall';
       $('bars').appendChild(d);
     });
+  }
+
+  // ระยะกำเฉลี่ย และจำนวนรอบที่เกร็งต้าน แยกรายนิ้ว (null = นิ้วนั้นไม่ได้ร่วมฝึก)
+  function fingerSummary(s){
+    const peaks = FINGERS.map((_, i) => {
+      const v = (s.fpeaks || []).map(p => p && p[i]).filter(x => x != null);
+      return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+    });
+    const stalls = FINGERS.map((_, i) => (s.fstalls || []).filter(st => st && st[i]).length);
+    return { peaks, stalls };
   }
 
   function finishSession(result){
@@ -1886,6 +2203,8 @@
       avgPeak: Math.round(session.peaks.reduce((a,b)=>a+b,0)/n),
       stalls: session.stalls.filter(Boolean).length,
       peaks: session.peaks, result,
+      ...(session.mode ? (() => { const fs = fingerSummary(session);
+        return { mode: session.mode, mask: session.mask, fingerPeaks: fs.peaks, fingerStalls: fs.stalls }; })() : {}),
     });
     saveDB();
     session = null;
@@ -1939,6 +2258,7 @@
   });
   window.addEventListener('appinstalled', () => { $('installBtn').hidden = true; toast('ติดตั้งแอปเรียบร้อย'); });
 
+  buildFingerUI();
   loadPatientSettings();
   renderAll();
   renderSession();

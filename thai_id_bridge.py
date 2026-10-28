@@ -428,7 +428,15 @@ def make_handler(card, allowed_origins, port):
                     card.request_reread()
                     time.sleep(1.2)
                 self._headers(200, origin)
-                self.wfile.write(json.dumps(card.snapshot(), ensure_ascii=False).encode("utf-8"))
+                snap = dict(card.snapshot(), webDir=str(WEB_DIR))
+                self.wfile.write(json.dumps(snap, ensure_ascii=False).encode("utf-8"))
+                return
+            if url.path == "/__quit" and origin is None and self.headers.get("X-RehabGlove") == "quit":
+                # เปิดโปรแกรมรุ่นใหม่/จากโฟลเดอร์อื่น: ตัวใหม่สั่งปิดตัวนี้ เพื่อไม่ให้แสดงหน้าแอปเก่า
+                self._headers(200, None)
+                self.wfile.write(b'{"ok":true}')
+                print("มีการเปิดโปรแกรมจากโฟลเดอร์อื่น ปิดตัวนี้", flush=True)
+                threading.Timer(0.3, lambda: os._exit(0)).start()
                 return
             self._serve_static(url.path)
 
@@ -486,12 +494,28 @@ def open_app_window(url):
         webbrowser.open(url)
 
 
-def already_running(port):
+def running_info(port):
+    """ข้อมูลของ RehabGlove ที่ทำงานอยู่แล้วบนพอร์ตนี้ (None = ไม่ใช่ RehabGlove)"""
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/card", timeout=1.5) as r:
-            return json.load(r).get("bridge") is True
+            info = json.load(r)
+            return info if info.get("bridge") is True else None
+    except Exception:
+        return None
+
+
+def stop_running(port):
+    """สั่งปิดตัวที่ทำงานอยู่ (รองรับเฉพาะรุ่นที่มี /__quit) คืน True ถ้าพอร์ตว่างแล้ว"""
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/__quit", headers={"X-RehabGlove": "quit"})
+        urllib.request.urlopen(req, timeout=1.5).read()
     except Exception:
         return False
+    for _ in range(20):
+        time.sleep(0.2)
+        if running_info(port) is None:
+            return True
+    return False
 
 
 def diagnose(seconds=30):
@@ -554,21 +578,40 @@ def main():
     open_window = args.open or getattr(sys, "frozen", False)  # ไฟล์ .exe เปิดหน้าแอปให้เสมอ
     app_url = f"http://127.0.0.1:{args.port}/"
 
+    card = CardReader(mock=args.mock)
     try:
-        card = CardReader(mock=args.mock)
         server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(card, set(args.allow_origin), args.port))
     except OSError:
-        if already_running(args.port):
-            # เปิดโปรแกรมซ้ำ: แค่เปิดหน้าแอปอีกหน้าต่าง ใช้ตัวที่ทำงานอยู่แล้ว
+        info = running_info(args.port)
+        if info is None:
+            print(f"พอร์ต {args.port} ถูกโปรแกรมอื่นใช้อยู่ ลองปิดโปรแกรมนั้น หรือรันด้วย --port 8766")
+            sys.exit(1)
+        if info.get("webDir") == str(WEB_DIR):
+            # เปิดโปรแกรมซ้ำจากโฟลเดอร์เดียวกัน: แค่เปิดหน้าแอปอีกหน้าต่าง ใช้ตัวที่ทำงานอยู่แล้ว
             print("RehabGlove ทำงานอยู่แล้ว เปิดหน้าแอปให้ใหม่")
             if open_window:
                 open_app_window(app_url)
             return
-        print(f"พอร์ต {args.port} ถูกโปรแกรมอื่นใช้อยู่ ลองปิดโปรแกรมนั้น หรือรันด้วย --port 8766")
-        return
+        # มี RehabGlove ตัวอื่นเปิดค้างอยู่ (รุ่นเก่า หรือจากโฟลเดอร์อื่น/ไฟล์ .exe) ถ้าปล่อยไว้จะเห็นหน้าแอปเก่า
+        print("พบ RehabGlove อีกตัวเปิดค้างอยู่" + (f" จากโฟลเดอร์ {info['webDir']}" if info.get("webDir") else " (รุ่นเก่า)"))
+        print("กำลังปิดตัวเก่า แล้วเปิดตัวนี้แทน...")
+        server = None
+        if stop_running(args.port):
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", args.port),
+                                             make_handler(card, set(args.allow_origin), args.port))
+            except OSError:
+                server = None
+        if server is None:
+            print("ปิดตัวเก่าเองไม่ได้ กรุณาปิดด้วยตัวเอง แล้วเปิดแอปใหม่:")
+            print("  1) ปิดหน้าต่างดำ 'RehabGlove Clinic' ทุกหน้าต่างบนแถบงาน และปิด RehabGlove.exe ถ้าเปิดอยู่")
+            print("  2) ถ้ายังไม่หาย: Ctrl+Shift+Esc เปิด Task Manager -> เลือก python / RehabGlove -> End task")
+            print("  3) หรือรีสตาร์ทเครื่อง")
+            sys.exit(1)
 
     threading.Thread(target=card.run, daemon=True).start()
     print(f"RehabGlove Clinic ทำงานที่ {app_url}" + ("  (โหมดบัตรจำลอง)" if args.mock else ""))
+    print(f"ไฟล์หน้าแอปจากโฟลเดอร์: {WEB_DIR}")
     print(f"ตัวกลางอ่านบัตรประชาชน: {app_url}card")
     print("เปิดหน้าต่างนี้ทิ้งไว้ระหว่างใช้งาน ปิดหน้าต่างนี้ = ปิดโปรแกรม")
     if not WEB_DIR.is_dir():

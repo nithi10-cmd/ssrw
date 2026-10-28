@@ -38,7 +38,15 @@ from pathlib import Path
 import re
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+try:
+    from http.server import ThreadingHTTPServer
+except ImportError:  # Python 3.6 ไม่มี ThreadingHTTPServer
+    from http.server import HTTPServer
+    from socketserver import ThreadingMixIn
+
+    class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+        daemon_threads = True
 from urllib.parse import urlparse, parse_qs
 
 PORT = 8765
@@ -109,9 +117,15 @@ SCARD_E_READER_UNAVAILABLE = 0x80100017
 SCARD_E_UNKNOWN_READER = 0x80100009
 SCARD_W_UNRESPONSIVE_CARD = 0x80100066
 SCARD_W_UNPOWERED_CARD = 0x80100067
+SCARD_W_RESET_CARD = 0x80100068
 SCARD_W_REMOVED_CARD = 0x80100069
 
-NO_CARD = {SCARD_E_NO_SMARTCARD, SCARD_W_REMOVED_CARD, SCARD_W_UNRESPONSIVE_CARD, SCARD_W_UNPOWERED_CARD}
+NO_CARD = {SCARD_E_NO_SMARTCARD, SCARD_W_REMOVED_CARD, SCARD_W_UNRESPONSIVE_CARD, SCARD_W_UNPOWERED_CARD,
+           SCARD_W_RESET_CARD}
+# มีบัตรอยู่ในเครื่องอ่าน แต่บัตรไม่ตอบสนอง (เสียบกลับด้าน/ไม่สุด/ชิปสกปรก) — ต้องบอกผู้ใช้ ไม่ใช่ทำเหมือนไม่มีบัตร
+CARD_MUTE = {SCARD_W_UNRESPONSIVE_CARD, SCARD_W_UNPOWERED_CARD}
+CARD_MUTE_MSG = ("พบบัตรในเครื่องอ่าน แต่บัตรไม่ตอบสนอง: ดึงบัตรออกแล้วเสียบใหม่ให้สุด "
+                 "โดยหันด้านชิปทองขึ้นและเสียบด้านชิปเข้าก่อน หรือเช็ดชิปให้สะอาด")
 CONTEXT_LOST = {SCARD_E_NO_SERVICE, SCARD_E_SERVICE_STOPPED, SCARD_E_INVALID_HANDLE}
 READER_GONE = {SCARD_E_READER_UNAVAILABLE, SCARD_E_UNKNOWN_READER}
 
@@ -320,15 +334,26 @@ class CardReader:
                     self._update(reader="", present=False, data=None, error="ไม่พบเครื่องอ่านบัตร")
                     time.sleep(1.5)
                     continue
-                reader = rs[0]
-                try:
-                    card = pcsc.connect(reader)
-                except PcscError as e:
-                    if e.code in NO_CARD:
-                        self._update(reader=reader, present=False, data=None, error="")
-                        time.sleep(0.7)
-                        continue
-                    raise
+                # ลองทุกเครื่องอ่าน (บางเครื่องมีหลายช่อง หรือมีเครื่องอ่านเสมือนของ Windows) ใช้ช่องที่มีบัตร
+                reader, card, codes = rs[0], None, []
+                for r in rs:
+                    try:
+                        card, reader = pcsc.connect(r), r
+                        break
+                    except PcscError as e:
+                        if e.code not in NO_CARD:
+                            raise
+                        codes.append(e.code)
+                if card is None:
+                    mute = any(c in CARD_MUTE for c in codes)
+                    self._update(reader=reader, present=mute, data=None, error=CARD_MUTE_MSG if mute else "")
+                    state = "บัตรไม่ตอบสนอง" if mute else "ไม่มีบัตร"
+                    msg = f"{', '.join(rs)}: {state} ({', '.join(f'0x{c:08X}' for c in codes)})"
+                    if msg != last_error:
+                        print(msg)
+                        last_error = msg
+                    time.sleep(0.7)
+                    continue
 
                 try:
                     snap = self.snapshot()
@@ -469,19 +494,69 @@ def already_running(port):
         return False
 
 
+def diagnose(seconds=30):
+    """แสดงเครื่องอ่านที่พบ และผลการเชื่อมต่อบัตรทุกวินาที ใช้หาสาเหตุเวลาอ่านบัตรไม่ได้"""
+    print("ตรวจเครื่องอ่านบัตร (%d วินาที) — ลองเสียบ/ถอด/กลับด้านบัตรระหว่างนี้" % seconds)
+    try:
+        pcsc = Pcsc()
+        pcsc.open()
+    except Exception as e:
+        print("เปิดระบบสมาร์ทการ์ดไม่ได้:", e)
+        return
+    last = None
+    for _ in range(seconds):
+        try:
+            lines = []
+            rs = pcsc.readers()
+            if not rs:
+                lines.append("ไม่พบเครื่องอ่านบัตร")
+            for r in rs:
+                try:
+                    card = pcsc.connect(r)
+                    try:
+                        atr = card.getATR()
+                        ok = ""
+                        try:
+                            CardReader()._transmit(card, SELECT_THAI_ID,
+                                                   [0x00, 0xC0, 0x00, 0x01] if atr[:2] == [0x3B, 0x67] else [0x00, 0xC0, 0x00, 0x00])
+                            ok = " -> บัตรประชาชนไทย ตอบสนองปกติ"
+                        except Exception as e:
+                            ok = f" -> ไม่ใช่บัตรประชาชน หรือเลือกแอปบัตรไม่ได้ ({e})"
+                        lines.append(f"[{r}] มีบัตร ATR={' '.join('%02X' % b for b in atr)}{ok}")
+                    finally:
+                        card.disconnect()
+                except PcscError as e:
+                    why = ("ไม่มีบัตร" if e.code in (SCARD_E_NO_SMARTCARD, SCARD_W_REMOVED_CARD)
+                           else "บัตรไม่ตอบสนอง (กลับด้าน/ไม่สุด/ชิปสกปรก)" if e.code in CARD_MUTE
+                           else PCSC_HINT.get(e.code, "ผิดพลาด"))
+                    lines.append(f"[{r}] {why} (0x{e.code:08X})")
+            text = "\n".join(lines)
+        except Exception as e:
+            text = f"ผิดพลาด: {e}"
+        if text != last:
+            print(time.strftime("%H:%M:%S"), text, sep="\n")
+            last = text
+        time.sleep(1)
+    print("จบการตรวจ")
+
+
 def main():
     ap = argparse.ArgumentParser(description="RehabGlove Clinic: app launcher + Thai ID card bridge")
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--open", action="store_true", help="เปิดหน้าแอปในหน้าต่างของตัวเอง")
     ap.add_argument("--mock", action="store_true", help="จำลองบัตร ไม่ต้องมีเครื่องอ่าน")
     ap.add_argument("--allow-origin", action="append", default=[], help="โดเมนเว็บแอปที่อนุญาตเพิ่ม")
+    ap.add_argument("--diag", action="store_true", help="ตรวจเครื่องอ่านบัตร แสดงผลทุกวินาที (ไม่เปิดแอป)")
     args = ap.parse_args()
+    if args.diag:
+        diagnose()
+        return
     open_window = args.open or getattr(sys, "frozen", False)  # ไฟล์ .exe เปิดหน้าแอปให้เสมอ
     app_url = f"http://127.0.0.1:{args.port}/"
 
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(card := CardReader(mock=args.mock),
-                                                                            set(args.allow_origin), args.port))
+        card = CardReader(mock=args.mock)
+        server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(card, set(args.allow_origin), args.port))
     except OSError:
         if already_running(args.port):
             # เปิดโปรแกรมซ้ำ: แค่เปิดหน้าแอปอีกหน้าต่าง ใช้ตัวที่ทำงานอยู่แล้ว

@@ -201,7 +201,7 @@
   .fpeaks small{color:var(--series-2);font-weight:600;}
   .cal-info{font-size:12.5px;color:var(--text-2);margin:10px 0 0;line-height:1.7;}
   .rom-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
-  .rom-row .input{width:90px;min-width:0;text-align:center;font-variant-numeric:tabular-nums;}
+  .rom-row .input{flex:1 1 60px;width:auto;min-width:0;max-width:110px;text-align:center;font-variant-numeric:tabular-nums;}
   .rom-row .btn-secondary{width:42px;padding:0;}
   .rom-row .btn-primary{margin-left:auto;}
   .rom-unit{font-size:13.5px;color:var(--text-2);}
@@ -297,7 +297,7 @@
   @media (max-width:900px){
     .sidenav{display:none;}
     main{padding:16px 16px 150px;}
-    .grid-2,.grid-2-even{grid-template-columns:1fr;}
+    .grid-2,.grid-2-even{grid-template-columns:minmax(0,1fr);}
     .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);}
     .bottomnav .nav-btn{flex-direction:column;gap:2px;font-size:12px;padding:8px 4px;border-radius:0;align-items:center;}
     .bottomnav .nav-btn.active{background:none;}
@@ -538,7 +538,7 @@
                   <button class="btn btn-secondary cal" id="zeroBtn" disabled>ตั้งเป็นแบมือ</button>
                   <button class="btn btn-secondary cal" id="setMaxBtn" disabled>ตั้งเป็นกำสุด</button>
                 </div>
-                <button class="btn btn-ghost btn-sm cal v4ctl" id="flipBtn" style="margin-top:8px;" disabled><svg class="ico"><use href="#i-swap"/></svg>กด "กำเพิ่ม" แล้วนิ้วคลาย? สลับทิศของนิ้วที่เลือก</button>
+                <button class="btn btn-ghost btn-sm cal v4ctl" id="flipBtn" style="margin-top:8px;white-space:normal;text-align:left;height:auto;" disabled><svg class="ico"><use href="#i-swap"/></svg>กด "กำเพิ่ม" แล้วนิ้วคลาย? สลับทิศของนิ้วที่เลือก</button>
                 <div class="field" id="romField" style="margin:12px 0 0;">
                   <div class="field-top"><label for="romTurns">จำนวนรอบมอเตอร์ตอนกำสุด (<span id="romWho">ทุกนิ้ว</span>)</label></div>
                   <div class="rom-row">
@@ -1970,11 +1970,11 @@
   $('flipBtn').addEventListener('click', ()=> sendCommand('FLIP'));
 
   // ---------- รายนิ้ว (ถุงมือ v4: Servo 4 ตัว) ----------
-  const FINGERS = ['โป้ง', 'ชี้', 'กลาง', 'นาง+ก้อย'];
+  const FINGERS = ['โป้ง', 'ชี้', 'กลาง+นาง', 'ก้อย'];
   const FCOLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
   const MODES = {
     GRIP: { label: 'กำ-แบ',       desc: 'นิ้วที่เลือกกำและแบพร้อมกัน — เลือกทุกนิ้ว = กำทั้งมือแบบเดิม, เลือกนิ้วเดียว = ฝึกทีละนิ้ว' },
-    WAVE: { label: 'ไล่ทีละนิ้ว', desc: 'กำ-แบทีละนิ้วไล่จากนิ้วโป้งไปนิ้วนาง/ก้อย ฝึกการแยกการเคลื่อนไหวของแต่ละนิ้ว' },
+    WAVE: { label: 'ไล่ทีละนิ้ว', desc: 'กำ-แบทีละนิ้วไล่จากนิ้วโป้งไปนิ้วก้อย ฝึกการแยกการเคลื่อนไหวของแต่ละนิ้ว' },
     OPP:  { label: 'แตะนิ้วโป้ง', desc: 'นิ้วโป้งกำคู่กับนิ้วอื่นทีละนิ้ว (opposition) ฝึกท่าหยิบจับ — นิ้วโป้งร่วมฝึกเสมอ' },
   };
   let gloveV4 = false;
